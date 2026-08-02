@@ -24,6 +24,7 @@ export class Driver {
     private windowMap: Map<KwinWindow, EngineWindow> = new Map();
     private untiledWindows: Set<KwinWindow> = new Set();
     private savedActiveWindow: KwinWindow | null = null;
+    private buildingLayout: boolean = false;
 
     private tilingEngine: TilingEngine;
 
@@ -114,7 +115,12 @@ export class Driver {
 
         const engineRootTile = this.tilingEngine.buildLayout();
         this.engineRootTile = applySingleWindowSizing(engineRootTile, display);
-        this.tileMap = buildLayout(rootTile, this.engineRootTile);
+        this.buildingLayout = true;
+        try {
+            this.tileMap = buildLayout(rootTile, this.engineRootTile);
+        } finally {
+            this.buildingLayout = false;
+        }
         this.placementTileMap = new Map(this.tileMap);
         if (this.engineRootTile !== engineRootTile) {
             for (const kwinTile of this.placementTileMap.keys()) {
@@ -320,6 +326,9 @@ export class Driver {
     }
 
     private updateTileSizesCallback(display: Display) {
+        if (this.buildingLayout) {
+            return;
+        }
         ctrl().queueEvent({
             t: "updateTiles",
             display: display,
@@ -329,6 +338,9 @@ export class Driver {
     // when updating tile count we want to rebuild as for most engines this is an error
     // for kwin this is fine though
     private updateTileCountCallback(display: Display) {
+        if (this.buildingLayout) {
+            return;
+        }
         ctrl().queueEvent({
             t: "updateTiles",
             display: display,
